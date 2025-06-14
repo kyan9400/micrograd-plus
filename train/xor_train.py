@@ -1,5 +1,8 @@
 import sys
 import os
+import pickle
+
+# Add parent dir to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.mlp import MLP
@@ -37,3 +40,9 @@ for x_vals, _ in data:
     x = [Value(v) for v in x_vals]
     out = model(x)
     print(f"Input: {x_vals} → Pred: {out.data:.4f}")
+
+# === Save model ===
+os.makedirs("checkpoints", exist_ok=True)
+with open("checkpoints/xor_model.pkl", "wb") as f:
+    pickle.dump([p.data for p in model.parameters()], f)
+print("✅ XOR model saved to checkpoints/xor_model.pkl")

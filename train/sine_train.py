@@ -1,14 +1,16 @@
 import sys
 import os
+import pickle
+import matplotlib.pyplot as plt
+import numpy as np
+from tqdm import trange
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.mlp import MLP
 from optim.optimizers import Adam
 from data.sine import load_sine
 from core.engine import Value
-import matplotlib.pyplot as plt
-import numpy as np
-from tqdm import trange  # progress bar
 
 # Load training data
 data = load_sine(100)  # use fewer samples for speed
@@ -32,6 +34,12 @@ for epoch in trange(100):  # fewer epochs = faster
 
     if epoch % 20 == 0 or epoch == 99:
         print(f"\nEpoch {epoch}: loss = {total_loss.data:.4f}")
+
+# === Save model ===
+os.makedirs("checkpoints", exist_ok=True)
+with open("checkpoints/sine_model.pkl", "wb") as f:
+    pickle.dump([p.data for p in model.parameters()], f)
+print("✅ Sine model saved to checkpoints/sine_model.pkl")
 
 # ✅ After training: plot predictions
 x_test = np.linspace(-np.pi, np.pi, 100)
