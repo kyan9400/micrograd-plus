@@ -6,7 +6,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
-# === Train quick XOR model ===
+# === Train XOR model upfront ===
 xor_model = MLP(2, [4, 1])
 xor_data = [
     ([0.0, 0.0], 0.0),
@@ -24,24 +24,16 @@ for _ in range(100):
     loss.backward()
     optimizer.step()
 
-# === Train quick sine model ===
+# === Initialize sine model ===
 sine_model = MLP(1, [16, 16, 1])
 sine_data = [([x], math.sin(x)) for x in np.linspace(-math.pi, math.pi, 100)]
-optimizer = Adam(sine_model.parameters(), lr=0.01)
-for _ in range(100):
-    loss = Value(0.0)
-    for x, y in sine_data:
-        pred = sine_model([Value(xi) for xi in x])
-        loss += (pred - y) * (pred - y)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
 
-# === Inference functions ===
+# === Inference: XOR ===
 def predict_xor(x1: float, x2: float):
     out = xor_model([Value(x1), Value(x2)])
     return out.data
 
+# === Inference: Sine Prediction + Plot ===
 def predict_sine_with_plot(x_val: float):
     x_range = np.linspace(-math.pi, math.pi, 100)
     y_true = np.sin(x_range)
@@ -60,9 +52,40 @@ def predict_sine_with_plot(x_val: float):
 
     return fig, y_point
 
-# === Gradio Interface ===
+# === Training: Sine with Live Loss ===
+def train_sine_model():
+    global sine_model
+    sine_model = MLP(1, [16, 16, 1])
+    optimizer = Adam(sine_model.parameters(), lr=0.01)
+    epochs = 100
+    losses = []
+
+    for epoch in range(epochs):
+        total_loss = Value(0.0)
+        for x, y in sine_data:
+            pred = sine_model([Value(xi) for xi in x])
+            total_loss += (pred - y) * (pred - y)
+
+        optimizer.zero_grad()
+        total_loss.backward()
+        optimizer.step()
+
+        if epoch % 5 == 0 or epoch == epochs - 1:
+            losses.append((epoch, total_loss.data))
+
+    # === Plot losses ===
+    epochs, loss_vals = zip(*losses)
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.plot(epochs, loss_vals, marker='o')
+    ax.set_title("Sine Training Loss")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Loss")
+    ax.grid(True)
+    return fig
+
+# === Gradio UI ===
 with gr.Blocks() as demo:
-    gr.Markdown("## 🧠 Micrograd+ Demo: XOR + Sine Plot")
+    gr.Markdown("## 🧠 Micrograd+ Demo: XOR + Sine Curve Fitting")
 
     with gr.Tab("🔁 XOR"):
         x1 = gr.Slider(0, 1, step=1, label="x1")
@@ -76,5 +99,9 @@ with gr.Blocks() as demo:
         y_output = gr.Number(label="MLP sin(x) prediction")
         sine_plot = gr.Plot(label="Sine vs MLP Prediction")
         x_slider.change(predict_sine_with_plot, inputs=[x_slider], outputs=[sine_plot, y_output])
+
+        train_btn = gr.Button("Train Sine Model")
+        loss_plot = gr.Plot(label="Training Loss Curve")
+        train_btn.click(train_sine_model, outputs=loss_plot)
 
 demo.launch()
