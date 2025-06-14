@@ -1,3 +1,4 @@
+
 import gradio as gr
 from core.engine import Value
 from core.mlp import MLP
@@ -7,12 +8,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import pickle
+import json
 
 # === Utility: Save and load model weights ===
 def save_model(model, path):
     os.makedirs("checkpoints", exist_ok=True)
     with open(path, "wb") as f:
         pickle.dump([p.data for p in model.parameters()], f)
+
+def save_model_as_json(model, path):
+    os.makedirs("checkpoints", exist_ok=True)
+    data = [p.data for p in model.parameters()]
+    with open(path, "w") as f:
+        json.dump(data, f)
 
 def load_model(model, path):
     if os.path.exists(path):
@@ -43,6 +51,7 @@ def train_xor_model(epochs=100, lr=0.1, hidden=4, save=False):
         optimizer.step()
     if save:
         save_model(model, "checkpoints/xor_model.pkl")
+        save_model_as_json(model, "checkpoints/xor_model.json")
     return model
 
 def train_sine_model(epochs=100, lr=0.01, hidden1=16, hidden2=16, save=False):
@@ -59,6 +68,7 @@ def train_sine_model(epochs=100, lr=0.01, hidden1=16, hidden2=16, save=False):
         optimizer.step()
     if save:
         save_model(model, "checkpoints/sine_model.pkl")
+        save_model_as_json(model, "checkpoints/sine_model.json")
     return model
 
 # === Init models ===
@@ -94,7 +104,7 @@ def plot_sine(x_val):
     ax.grid(True)
     return fig
 
-# === Retraining + Loading ===
+# === Retraining + Load callbacks ===
 def retrain_xor(epochs, lr, hidden):
     global xor_model
     xor_model = train_xor_model(epochs=epochs, lr=lr, hidden=hidden, save=True)
@@ -103,7 +113,6 @@ def retrain_xor(epochs, lr, hidden):
 def retrain_sine(epochs, lr, h1, h2):
     global sine_model
     sine_model = train_sine_model(epochs=epochs, lr=lr, hidden1=h1, hidden2=h2, save=True)
-
     data = [([x], math.sin(x)) for x in np.linspace(-math.pi, math.pi, 100)]
     losses = []
     optimizer = Adam(sine_model.parameters(), lr=lr)
@@ -139,7 +148,7 @@ def load_latest_sine():
 
 # === UI ===
 with gr.Blocks() as demo:
-    gr.Markdown("## 🧠 Micrograd+ Trainer (Persistent Checkpoints)")
+    gr.Markdown("## 🧠 Micrograd+ Trainer (with JSON Export)")
 
     with gr.Tab("🔁 XOR Logic"):
         with gr.Row():
@@ -160,6 +169,13 @@ with gr.Blocks() as demo:
         load_xor_btn = gr.Button("🔁 Load Saved XOR Model")
         load_xor_btn.click(load_latest_xor, outputs=xor_status)
 
+        xor_download = gr.File(label="Download XOR Model (.json)")
+        export_xor_btn = gr.Button("📥 Export XOR as JSON")
+        export_xor_btn.click(
+            fn=lambda: "checkpoints/xor_model.json",
+            outputs=xor_download
+        )
+
     with gr.Tab("🌊 Sine Fitting"):
         with gr.Row():
             sine_x = gr.Slider(-math.pi, math.pi, step=0.05, label="Input x")
@@ -179,5 +195,12 @@ with gr.Blocks() as demo:
 
         load_sine_btn = gr.Button("🔁 Load Saved Sine Model")
         load_sine_btn.click(load_latest_sine, outputs=sine_status)
+
+        sine_download = gr.File(label="Download Sine Model (.json)")
+        export_sine_btn = gr.Button("📥 Export Sine as JSON")
+        export_sine_btn.click(
+            fn=lambda: "checkpoints/sine_model.json",
+            outputs=sine_download
+        )
 
 demo.launch()
